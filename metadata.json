@@ -1,0 +1,6 @@
+{
+  "name": "PitchCheck",
+  "description": "Practise defending your stock thesis with an educational stock-pitch practice coach for commerce students.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
