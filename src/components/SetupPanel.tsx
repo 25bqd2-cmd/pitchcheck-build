@@ -56,7 +56,7 @@ export function SetupPanel({
           </h2>
           <p className="mt-2 text-[15px] leading-relaxed text-[#57534E]">
             Enter as much or as little as you have ready. Missing details are
-            collected one at a time in conversation. Inputs are sent to Gemini
+            collected one at a time in conversation. Inputs are sent to the selected AI service
             to generate feedback; this app does not persist session notes.
           </p>
         </div>
