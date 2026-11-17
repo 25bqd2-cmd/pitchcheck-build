@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { GoogleGenAI, ThinkingLevel } from "@google/genai";
 import { FINAL_TESTED_SYSTEM_PROMPT } from "./src/systemPrompt.ts";
+import { codexCoach, codexModel } from "./codexCoach.ts";
 
 interface IncomingMessage {
   role: "user" | "model";
@@ -12,6 +13,7 @@ interface IncomingMessage {
 
 const MODEL_ID = "gemini-3.5-flash-lite";
 const MAX_OUTPUT_TOKENS = 2048;
+const LOCAL_CODEX = process.env.PITCHCHECK_PROVIDER === "codex";
 
 function getAiClient(): GoogleGenAI {
   return new GoogleGenAI({
@@ -156,7 +158,19 @@ async function startServer() {
   const app = express();
   app.use(express.json({ limit: "1mb" }));
 
+  app.get("/api/status", (_req, res) => {
+    res.json({ provider: LOCAL_CODEX ? "Local Codex" : "Gemini", model: LOCAL_CODEX ? codexModel() : MODEL_ID });
+  });
+
   app.post("/api/chat", async (req, res) => {
+    if (LOCAL_CODEX) {
+      const origin = req.get("origin");
+      const expected = `http://${req.get("host")}`;
+      if ((origin && origin !== expected) || !req.is("application/json")) {
+        res.status(403).json({ error: "Open PitchCheck directly on this Mac to practise." });
+        return;
+      }
+    }
     const { messages } = req.body ?? {};
     if (!isValidMessages(messages)) {
       res.status(400).json({
@@ -166,13 +180,16 @@ async function startServer() {
     }
 
     try {
-      const ai = getAiClient();
-      const reply = await generateCoachReply(ai, messages);
+      const reply = LOCAL_CODEX
+        ? await codexCoach(messages)
+        : await generateCoachReply(getAiClient(), messages);
       res.json({ reply });
     } catch (err) {
-      const formatted = formatApiError(err);
+      const formatted = LOCAL_CODEX
+        ? { status: 503, message: err instanceof Error ? err.message : "Codex is unavailable. Please retry." }
+        : formatApiError(err);
       // Do not log user-submitted notes, thesis, or answers.
-      console.error(`Gemini chat request failed with status ${formatted.status}`);
+      console.error(`Coach request failed with status ${formatted.status}`);
       res.status(formatted.status).json({ error: formatted.message });
     }
   });
@@ -198,8 +215,9 @@ async function startServer() {
   }
 
   const port = Number(process.env.PORT) || 3000;
-  app.listen(port, "0.0.0.0", () => {
-    console.log(`PitchCheck server listening on http://0.0.0.0:${port}`);
+  const host = LOCAL_CODEX ? "127.0.0.1" : "0.0.0.0";
+  app.listen(port, host, () => {
+    console.log(`PitchCheck server listening on http://${host}:${port}`);
   });
 }
 
