@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PracticeView } from "./components/PracticeView.tsx";
 import { SetupPanel } from "./components/SetupPanel.tsx";
 import { requestCoachReply } from "./lib/coachApi.ts";
@@ -104,6 +104,10 @@ function deriveSessionMetrics(messages: ChatMessage[]) {
 }
 
 export default function App() {
+  const [provider, setProvider] = useState("AI coach");
+  useEffect(() => {
+    fetch("/api/status").then(r => r.json()).then(s => setProvider(s.provider)).catch(() => {});
+  }, []);
   const [setup, setSetup] = useState<PitchSetup>(INITIAL_SETUP);
   const [hasStarted, setHasStarted] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -137,7 +141,8 @@ export default function App() {
     !isLoading &&
     !metrics.isFinished &&
     hasModelReplied &&
-    metrics.questionsAsked >= 1;
+    metrics.questionsAsked >= 1 &&
+    attemptedQuestions.includes(metrics.questionsAsked);
 
   const canFinish = !isLoading && !metrics.isFinished && hasModelReplied;
 
@@ -356,7 +361,7 @@ export default function App() {
             PitchCheck
           </h1>
           <p className="mt-1 text-sm sm:text-[15px] text-[#DCE6DF]">
-            Practise defending your stock thesis.
+            Practise defending your stock thesis. <span className="ml-2 opacity-80">{provider}</span>
           </p>
         </div>
       </header>
@@ -409,7 +414,7 @@ export default function App() {
       <footer className="max-w-3xl w-full mx-auto px-5 sm:px-8 pb-8 pt-2 text-xs text-[#78716C] border-t border-[#ECE7DC]">
         <p className="pt-4">
           PitchCheck is an educational rehearsal tool for commerce students, not
-          investment advice. Inputs are sent to Gemini to generate feedback; the
+          investment advice. Inputs are sent to the selected AI service to generate feedback; the
           app does not persist notes, verify claims, or guarantee accurate
           feedback.
         </p>
